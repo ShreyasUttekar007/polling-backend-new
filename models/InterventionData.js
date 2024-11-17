@@ -32,6 +32,14 @@ const interventionDataSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    interventionIssueBrief: {
+      type: String,
+      trim: true,
+    },
+    interventionContactFollowUp: {
+      type: String,
+      trim: true,
+    },
     interventionAction: {
       type: String,
       trim: true,

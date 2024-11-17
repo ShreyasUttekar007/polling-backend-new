@@ -206,6 +206,8 @@ router.get("/get-intervention-data-by-constituency/:constituency", async (req, r
       constituency: record.constituency,
       interventionType: record.interventionType,
       interventionIssues: record.interventionIssues,
+      interventionIssueBrief: record.interventionIssueBrief,
+      interventionContactFollowUp: record.interventionContactFollowUp,
       interventionAction: record.interventionAction
     }));
 

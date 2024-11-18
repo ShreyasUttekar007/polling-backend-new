@@ -36,18 +36,22 @@ const boothDataSchema = new mongoose.Schema(
     polledVotes: {
       type: String,
       trim: true,
+      default: "",
     },
     favVotes: {
       type: String,
       trim: true,
+      default: "",
     },
     ubtVotes: {
       type: String,
       trim: true,
+      default: "",
     },
     otherVotes: {
       type: String,
       trim: true,
+      default: "",
     },
     boothType: {
       type: String,

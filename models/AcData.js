@@ -1,19 +1,5 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-
-const boothIncharge = new Schema(
-    {
-      name: {
-        type: String,
-        trim: true,
-      },
-      contact: {
-        type: String,
-        trim: true,
-      },
-    },
-    { _id: false }
-  );
   
 
 const acSchema = new mongoose.Schema(
@@ -46,10 +32,9 @@ const acSchema = new mongoose.Schema(
       trim: true,
     },
     acInchargeContact: {
-      type: String,
+      type: String, 
       trim: true,
     },
-    boothInchargeName: [boothIncharge],
   },
   { timestamps: true }
 );

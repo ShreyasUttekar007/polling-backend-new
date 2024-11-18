@@ -211,8 +211,6 @@ router.get("/get-intervention-data-by-constituency/:constituency", async (req, r
       interventionAction: record.interventionAction
     }));
 
-    console.log(response, "ress")
-
     res.json(response);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -237,7 +235,7 @@ router.get("/get-data-by-constituency/:constituency", async (req, res) => {
       constituency: record.constituency,
       boothType: record.boothType,
       totalVotes: record.totalVotes,
-      polledVotes: record.polledVotes,
+      polledVotes: record.polledVotes,  
       favVotes: record.favVotes,
       timeSlot: record.timeSlot,
       otherVotes: record.otherVotes,
@@ -251,16 +249,117 @@ router.get("/get-data-by-constituency/:constituency", async (req, res) => {
   }
 });
 
+router.get("/get-booth-status/:constituency", async (req, res) => {
+  try {
+    const { constituency } = req.params;
+    const { timeSlot } = req.query; // Optional query parameter for filtering by timeSlot
+
+    // Fetch all booths from AcData for the given constituency
+    const acBooths = await Acs.find({ constituency }).select("booth");
+
+    // If no booths are found in AcData, return an empty response
+    if (!acBooths || acBooths.length === 0) {
+      return res.status(404).json({
+        message: `No booths found for the constituency: ${constituency}`,
+        totalBooths: 0,
+        missingBoothCount: 0,
+        boothStatus: [],
+      });
+    }
+
+    // Extract booth names from AcData
+    const acBoothNames = acBooths.map((booth) => booth.booth);
+
+    // Build the query to fetch booths with data in BoothData
+    const query = { constituency };
+    if (timeSlot) {
+      query.timeSlot = timeSlot;
+    }
+
+    // Fetch all booths with data in BoothData (filtered by timeSlot if provided)
+    const boothDataBooths = await Booth.find(query).select("booth");
+
+    // Extract booth names from BoothData
+    const boothDataNames = boothDataBooths.map((booth) => booth.booth);
+
+    // Create booth status list with flags
+    const boothStatus = acBoothNames.map((booth) => ({
+      boothName: booth,
+      status: boothDataNames.includes(booth) ? 1 : 0,
+    }));
+
+    // Filter booths with no data (status: 0)
+    const noDataBooths = boothStatus.filter((booth) => booth.status === 0);
+
+    // Return response
+    res.status(200).json({
+      totalBooths: acBoothNames.length,
+      missingBoothCount: noDataBooths.length,
+      boothStatus,
+      noDataBooths: timeSlot ? noDataBooths : undefined, // Only include detailed no-data booths if timeSlot is provided
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+router.get("/get-booths-by-ac/:constituency", async (req, res) => {
+  try {
+    const { constituency } = req.params;
+
+    // Find all booths for the given constituency
+    const booths = await Acs.find({ constituency });
+
+    // If no booths are found, return a 404 response
+    if (!booths || booths.length === 0) {
+      return res.status(404).json({
+        message: `No booths found for the constituency: ${constituency}`,
+        totalBooths: 0,
+      });
+    }
+
+    // Respond with the booths and their count
+    res.status(200).json({
+      totalBooths: booths.length,
+      booths,
+    });
+  } catch (error) {
+    // Handle any errors
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // Backend: Check if an entry already exists for a booth and time slot
+// Assuming you have a Booth model with fields like `booth`, `timeSlot`, and `polledVotes`
 router.get('/check-entry', async (req, res) => {
-  const { booth, timeSlot } = req.query;
+  const { booth, timeSlot, polledVotes } = req.query;
+
   try {
     const existingEntry = await Booth.findOne({ booth, timeSlot });
     if (existingEntry) {
       return res.json({ exists: true });
-    } else {
-      return res.json({ exists: false });
     }
+
+    // Check previous entries for the booth
+    const previousEntries = await Booth.find({ booth })
+      .sort({ timeSlot: -1 }); // Sort by timeSlot descending to get the most recent entry first
+
+    if (previousEntries.length > 0) {
+      const latestEntry = previousEntries[0]; // Get the latest entry
+      if (latestEntry.timeSlot < timeSlot) {
+        if (Number(polledVotes) < latestEntry.polledVotes) {
+          return res.json({
+            exists: false,
+            message: `New polled votes must be greater than or equal to the latest value of ${latestEntry.polledVotes}.`,
+          });
+        }
+      }
+    }
+
+    return res.json({ exists: false });
+
   } catch (error) {
     console.error("Error checking booth entry:", error);
     res.status(500).send("Internal Server Error");

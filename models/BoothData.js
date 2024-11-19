@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-const AcData = require("../models/AcData"); 
+const AcData = require("../models/AcData");
 const Booth = require("./MappingData");
 
 const boothDataSchema = new mongoose.Schema(
@@ -65,26 +65,23 @@ const boothDataSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Pre-save hook to fetch and set totalVotes from AcData model before saving
+// Pre-save hook to fetch and set totalVotes, boothType, and zone
 boothDataSchema.pre("save", async function (next) {
   try {
+    // Fetch data from AcData
     const acData = await AcData.findOne({ booth: this.booth });
-    if (acData && acData.totalVotes && acData.boothType) {
-      this.totalVotes = acData.totalVotes;
-      this.boothType = acData.boothType;
+    if (acData) {
+      if (acData.totalVotes) this.totalVotes = acData.totalVotes;
+      if (acData.boothType) this.boothType = acData.boothType;
+      if (acData.zone) this.zone = acData.zone; // Fetch zone
     }
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
 
-boothDataSchema.pre("save", async function (next) {
-  try {
+    // Fetch data from Booth for PC
     const pcData = await Booth.findOne({ booth: this.booth });
     if (pcData && pcData.pc) {
       this.pc = pcData.pc;
     }
+
     next();
   } catch (error) {
     next(error);

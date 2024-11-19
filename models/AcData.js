@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
-  
 
 const acSchema = new mongoose.Schema(
   {
@@ -32,7 +31,11 @@ const acSchema = new mongoose.Schema(
       trim: true,
     },
     acInchargeContact: {
-      type: String, 
+      type: String,
+      trim: true,
+    },
+    zone: { // Newly added field
+      type: String,
       trim: true,
     },
   },

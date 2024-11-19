@@ -10,6 +10,10 @@ const boothDataSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    zone: {
+      type: String,
+      trim: true,
+    },
     pc: {
       type: String,
       trim: true,

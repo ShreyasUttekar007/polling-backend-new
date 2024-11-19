@@ -41,6 +41,18 @@ router.get("/get-ac-names", async (req, res) => {
   }
 });
 
+router.get("/get-zone-names", async (req, res) => {
+  try {
+    const zones = await BoothMapping.distinct("zone").sort();
+    if (zones.length === 0) {
+      return res.status(404).json({ error: "No zones found" });
+    }
+    res.json(zones);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get PC names
 router.get("/get-pc-names", async (req, res) => {
   try {
@@ -187,6 +199,117 @@ router.get("/get-all-pcs-data", async (req, res) => {
   }
 });
 
+router.get("/interventions/counts", async (req, res) => {
+  try {
+    const { constituency, zone, interventionType, interventionAction } = req.query;
+
+    // Build the match filter dynamically
+    const matchFilter = {};
+
+    if (constituency) {
+      matchFilter.constituency = constituency;
+    }
+
+    if (zone) {
+      matchFilter.zone = zone;
+    }
+
+    if (interventionType) {
+      matchFilter.interventionType = interventionType;
+    }
+
+    if (interventionAction) {
+      matchFilter.interventionAction = interventionAction;
+    }
+
+    const counts = await Intervention.aggregate([
+      {
+        $match: matchFilter, // Apply the match filter
+      },
+      {
+        $facet: {
+          totalInterventions: [{ $count: "count" }], // Total count of interventions
+          typeCounts: [
+            {
+              $match: {
+                interventionType: { $in: ["Administrative", "Political", "Police"] },
+              },
+            },
+            {
+              $group: {
+                _id: "$interventionType",
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          actionCounts: [
+            {
+              $match: {
+                interventionAction: { $in: ["Solved", "Not Solved", "Action Taken"] },
+              },
+            },
+            {
+              $group: {
+                _id: "$interventionAction",
+                count: { $sum: 1 },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          totalInterventions: { $arrayElemAt: ["$totalInterventions.count", 0] },
+          typeCounts: {
+            $arrayToObject: {
+              $map: {
+                input: "$typeCounts",
+                as: "type",
+                in: { k: "$$type._id", v: "$$type.count" },
+              },
+            },
+          },
+          actionCounts: {
+            $arrayToObject: {
+              $map: {
+                input: "$actionCounts",
+                as: "action",
+                in: { k: "$$action._id", v: "$$action.count" },
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // If no interventions exist, return zero counts
+    const result = counts[0] || { totalInterventions: 0, typeCounts: {}, actionCounts: {} };
+
+    // Fill missing intervention types and actions with 0 counts
+    const allTypes = ["Administrative", "Political", "Police"];
+    const allActions = ["Solved", "Not Solved", "Action Taken"];
+
+    allTypes.forEach((type) => {
+      if (!result.typeCounts[type]) {
+        result.typeCounts[type] = 0;
+      }
+    });
+
+    allActions.forEach((action) => {
+      if (!result.actionCounts[action]) {
+        result.actionCounts[action] = 0;
+      }
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error fetching intervention counts:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
+
 router.get("/get-intervention-data-by-constituency/:constituency", async (req, res) => {
   try {
     const { constituency } = req.params;
@@ -216,6 +339,60 @@ router.get("/get-intervention-data-by-constituency/:constituency", async (req, r
     res.status(500).json({ error: error.message });
   }
 });
+
+
+router.get("/get-intervention-data", async (req, res) => {
+  try {
+    const { constituency, zone, interventionType, interventionAction } = req.query;
+
+    // Build the query object based on filters
+    const query = {};
+
+    if (constituency) {
+      query.constituency = constituency;
+    }
+
+    if (zone) {
+      query.zone = zone;
+    }
+
+    if (interventionType) {
+      query.interventionType = interventionType;
+    }
+
+    if (interventionAction) {
+      query.interventionAction = interventionAction; // Filter based on interventionAction
+    }
+
+    // Find records based on the query
+    const interventionData = await Intervention.find(query);
+
+    if (!interventionData || interventionData.length === 0) {
+      return res.status(404).json({ error: "No data found for the given criteria" });
+    }
+
+    // Format data for response
+    const response = interventionData.map((record) => ({
+      _id: record._id,
+      zone: record.zone,
+      booth: record.booth,
+      constituency: record.constituency,
+      interventionType: record.interventionType,
+      interventionIssues: record.interventionIssues,
+      interventionIssueBrief: record.interventionIssueBrief,
+      interventionContactFollowUp: record.interventionContactFollowUp,
+      interventionAction: record.interventionAction,
+    }));
+
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching intervention data:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 
 router.get("/get-data-by-constituency/:constituency", async (req, res) => {
   try {

@@ -10,6 +10,10 @@ const interventionDataSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    zone: {
+      type: String,
+      trim: true,
+    },
     constituency: {
       type: String,
       required: [true, "Please select a Constituency"],

@@ -364,8 +364,8 @@ router.get("/get-intervention-data", async (req, res) => {
       query.interventionAction = interventionAction; // Filter based on interventionAction
     }
 
-    // Find records based on the query
-    const interventionData = await Intervention.find(query);
+    // Find records based on the query, sorted by latest first
+    const interventionData = await Intervention.find(query).sort({ createdAt: -1 });
 
     if (!interventionData || interventionData.length === 0) {
       return res.status(404).json({ error: "No data found for the given criteria" });
@@ -376,6 +376,7 @@ router.get("/get-intervention-data", async (req, res) => {
       _id: record._id,
       zone: record.zone,
       booth: record.booth,
+      boothType: record.boothType,
       constituency: record.constituency,
       interventionType: record.interventionType,
       interventionIssues: record.interventionIssues,
@@ -390,6 +391,7 @@ router.get("/get-intervention-data", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
 
 
 

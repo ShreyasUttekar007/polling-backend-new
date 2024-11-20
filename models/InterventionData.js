@@ -30,6 +30,7 @@ const interventionDataSchema = new mongoose.Schema(
     },
     interventionType: {
       type: String,
+      required: [true, "Please select a Intervention Type"],
       trim: true,
     },
     interventionIssues: {

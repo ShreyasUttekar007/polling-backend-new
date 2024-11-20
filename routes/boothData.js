@@ -130,32 +130,45 @@ router.get("/total-votes-by-booth-type", async (req, res) => {
       {
         $group: {
           _id: "$boothType",
-          totalVotes: { $sum: { $toInt: "$totalVotes" } },
-          totalPolledVotes: { $sum: { $toInt: "$polledVotes" } }, // Calculate total polled votes
+          totalVotes: {
+            $sum: { $toInt: { $ifNull: ["$totalVotes", "0"] } }, // Ensure numeric
+          },
+          totalPolledVotes: {
+            $sum: { $toInt: { $ifNull: ["$polledVotes", "0"] } }, // Ensure numeric
+          },
         },
       },
       {
         $addFields: {
           polledVotesPercentage: {
-            $multiply: [
-              { $divide: ["$totalPolledVotes", "$totalVotes"] }, // Calculate percentage
-              100,
-            ],
+            $cond: {
+              if: { $eq: ["$totalVotes", 0] },
+              then: 0,
+              else: { $multiply: [{ $divide: ["$totalPolledVotes", "$totalVotes"] }, 100] },
+            },
           },
         },
       },
       {
         $sort: {
-          _id: 1, // Sort by boothType in ascending order
+          _id: 1, // Sort by boothType
         },
       },
     ]);
+
+    // If no data, return default response
+    if (result.length === 0) {
+      return res.json([
+        { _id: "No Data", totalVotes: 0, totalPolledVotes: 0, polledVotesPercentage: 0 },
+      ]);
+    }
 
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 router.get("/get-all-pcs-data", async (req, res) => {
   try {
@@ -723,8 +736,15 @@ router.get("/votes-by-fav-ubt-other-percentage", async (req, res) => {
               then: 0,
               else: { $multiply: [{ $divide: ["$totalOtherVotes", "$totalPolledVotes"] }, 100] }
             }
+          },
+          polledVotesPercentage: {
+            $cond: {
+              if: { $eq: ["$totalVotes", 0] },
+              then: 0,
+              else: { $multiply: [{ $divide: ["$totalPolledVotes", "$totalVotes"] }, 100] }
+            }
           }
-        }
+        }      
       },
       {
         $sort: {
